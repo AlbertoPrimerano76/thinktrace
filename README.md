@@ -1,135 +1,117 @@
-# 🤖 ThinkTrace
 
-Welcome to the **ThinkTrace** framework — a robust, modular system designed to plug AI tools into agents powered by **Ollama**, **Pydantic AI**, or **CrewAI**, and dynamically reason through tool use with structured, explainable steps.
+🤖 THINKTRACE – Agentic Reasoning & Tool-Aware AI System
+========================================================
 
----
+Welcome to **ThinkTrace**, a modular and production-grade framework that integrates AI tools into LLM agents
+via the MCP protocol, powered by **Ollama**, and optionally extendable with **CrewAI**, **Pydantic AI**, or other agent frameworks.
 
-## 🧠 What This Does
+ThinkTrace enables tool-aware reasoning through structured steps, decision trees, and explainable outputs,
+accessible via both console and UI interfaces.
 
-This system:
-- Wraps any tool (e.g., a weather API, time server, database query, etc.) as an MCP-compatible tool.
-- Dynamically suggests and executes tools **only if needed**, using LLM reasoning.
-- Supports structured, step-by-step explanation of reasoning logic.
-- Supports both console and Gradio chat interfaces.
+--------------------------------------------------
+🧠 WHAT THIS DOES
+--------------------------------------------------
+- Wraps any tool (weather API, time server, etc.) as an MCP-compatible function.
+- Dynamically suggests and invokes tools only when needed using LLM reasoning.
+- Generates structured JSON reasoning trees.
+- Executes reasoning paths and explains steps via console (`rich.tree`) or Gradio chat.
+- Logs everything in human-readable and machine-readable formats.
 
----
+--------------------------------------------------
+📂 PROJECT STRUCTURE
+--------------------------------------------------
+thinktrace/
+├── core/
+│   ├── config_manager.py      -> Loads and validates .env settings
+│   ├── logger_manager.py      -> Rich-based logging and rotating file logs
+│   ├── tree_renderer.py       -> Renders beautiful reasoning trees
+│   └── mcp_server.py          -> Manages lifecycle of subprocess-based tools
+│
+├── tools/
+│   └── reasoning_engine.py    -> Main logic for LLM planning & step execution
+│
+├── ui/
+│   └── ui_gradio.py           -> Chat UI with step-by-step reasoning
+│
+├── ai/
+│   └── ollama_agent.py        -> Ollama-based tool-aware agent
+│
+├── main.py                    -> CLI or Gradio entry point
+├── .env                       -> Environment variables
+├── requirements.txt           -> Pip dependencies (use with `uv pip install`)
+├── mcp_servers/
+│   ├── mcp_config.json        -> Tool server definitions
+│   └── mcp_clock_server.py    -> Example: tool to get current time
 
-## 🔹 Project Structure
+--------------------------------------------------
+⚙️ SETUP INSTRUCTIONS (with uv)
+--------------------------------------------------
+$ uv venv
+$ source .venv/bin/activate
+$ uv pip install -r requirements.txt
 
-```
-core/
-├── mcp_client.py          # Generic MCP client to manage tool sessions
-├── mcp_server.py          # MCP-compatible tool server lifecycle
-├── logger_manager.py      # Rich-powered centralized logging
-├── config_manager.py      # Tool and server configuration loader
-├── tool_wrapper.py        # Adapter interface for MCP tools
-
-mcp_clients/
-├── ollama_reasoning_main.py   # Interactive reasoning engine (Ollama)
-├── pydantic_ai_main.py        # Chat interface using Pydantic AI LLMs
-
-mcp_servers/
-├── mcp_config.json        # Tool server definitions (cmd, args)
-├── mcp_clock_server.py    # Sample time server tool
-
-examples/
-├── console_chat_test.py   # Manual reasoning tests
-
-```
-
----
-
-## 🛠️ Tool Server Configuration
-
-`mcp_servers/mcp_config.json` defines tools like this:
-
-```json
+--------------------------------------------------
+🛠️ TOOL SERVER CONFIGURATION (mcp_config.json)
+--------------------------------------------------
 {
   "mcpServers": {
-    "time-server": {
+    "clock-server": {
       "command": "python3",
       "args": ["mcp_servers/mcp_clock_server.py"]
     }
   }
 }
-```
 
----
+--------------------------------------------------
+💡 REASONING PIPELINE
+--------------------------------------------------
+1. Agent parses the user question
+2. Agent generates structured JSON with intent & steps
+3. Tool usage is conditionally suggested
+4. Each step is executed (tool or inference)
+5. Final answer is returned and explained
 
-## 💡 Reasoning Pipeline (Ollama)
+--------------------------------------------------
+🖼️ REASONING EXAMPLE (JSON)
+--------------------------------------------------
+Input: "What's the time in Tokyo?"
 
-Implemented in `ollama_reasoning_main.py`, the LLM agent:
-
-1. **Discovers tool** relevance for the user query.
-2. **Generates JSON reasoning** with intent, steps, and logic.
-3. **Executes each step** (tool call, inference, formatting).
-4. **Explains the full reasoning chain** using `rich.tree`.
-5. Supports `Gradio` Chat UI or CLI entry point.
-
-### Run with Gradio
-```bash
-python ollama_reasoning_main.py  # or gradio ollama_reasoning_main.py
-```
-
----
-
-## 🌐 Reasoning Output Example
-For input: `"What's the weather like today in Malaga?"`
-```json
 {
-  "original_question": "What's the weather like today in Malaga?",
-  "intent": "weather_inquiry",
+  "original_question": "What's the time in Tokyo?",
+  "intent": "get_time",
   "reasoning_steps": [
-    { "step_type": "tool_use", "description": "Call get_current_weather for Malaga" },
-    { "step_type": "formatting", "description": "Convert weather result into readable format" }
+    {
+      "step_type": "tool_use",
+      "description": "Call get_current_time for Tokyo"
+    },
+    {
+      "step_type": "formatting",
+      "description": "Format time result into readable output"
+    }
   ]
 }
-```
 
----
+--------------------------------------------------
+✅ FEATURES
+--------------------------------------------------
+- Reasoning tree displayed in console or Gradio
+- File + terminal logs
+- Tool execution control (skip if missing args)
+- MCP client auto-loading and cleanup
+- Language model agnostic
+- Modular architecture
 
-## 📈 Model Benchmarking Summary
+--------------------------------------------------
+🧪 SUPPORTED MODELS (benchmarked)
+--------------------------------------------------
+- llama3.2
+- mistral-nemo
+- deepseek-r1:8b
+- command-r
 
-Tested with `llama3.2`, `mistral-nemo`, `deepseek-r1:8b`, and `command-r`.
-
-| Prompt | Model | Tool Use | Reasoning | Notes |
-|--------|--------|----------|-----------|-------|
-| What's the weather? | llama3.2 | ✅ Yes | ✅ Detailed | Slight overuse of steps |
-| Why do leaves change color? | llama3.2 | ❌ Used tool | ✅ | Should not use tools |
-| Say hello in Japanese | mistral-nemo | ❌ Not needed | ✅ | Clean inference |
-| Say hello in Japanese | command-r | ❌ Used tool | ✅ | Tool overuse |
-
----
-
-## 🧪 Pydantic AI Console Chat
-
-Run `pydantic_ai_main.py` to chat using a Pydantic agent backed by your local Ollama model.
-
-```bash
-python pydantic_ai_main.py
-```
-
-### Includes:
-- Token-limited prompt building
-- Streaming markdown output with `rich.live`
-- Auto cleanup of `MCPClient`
-
----
-
-## 🚀 Features
-- ✅ Modular client/server architecture
-- ✅ Gradio + console modes
-- ✅ Step-by-step reasoning logic
-- ✅ Tool use conditioned on real need
-- ✅ Model-agnostic agent (Pydantic, Ollama, etc.)
-- ✅ Easy benchmarking of open-source models
-
----
-
-## 🤧 For Devs: Building New Tool Wrappers
-To integrate tools for a new agent type:
-
-```python
+--------------------------------------------------
+🔧 TOOL WRAPPER TEMPLATE
+--------------------------------------------------
 async def wrap_tool(session, tool):
     async def wrapper(**kwargs):
         return await session.call_tool(tool.name, arguments=kwargs)
@@ -142,23 +124,22 @@ async def wrap_tool(session, tool):
         "parameters": tool.inputSchema
       }
     }
-```
 
----
+--------------------------------------------------
+🚀 DEVELOPMENT
+--------------------------------------------------
+Live dev with Gradio:
+$ gradio thinktrace/main.py
 
-## 🚜 For Reload/Live Development
-Use Gradio auto-reload:
-```bash
-gradio ollama_reasoning_main.py  # watches for file changes
-```
+Run CLI:
+$ python thinktrace/main.py
 
----
+--------------------------------------------------
+🫶 CONTRIBUTING
+--------------------------------------------------
+We welcome:
+- New MCP tools and wrappers
+- Feedback or feature requests
+- Integrations with LangGraph, CrewAI, LangChain
 
-## 🫶 Contributing
-
-Open to improvements, bug reports, and plug-in wrappers for LangGraph, CrewAI, LangChain, etc.
-
----
-
-Made with ❤️ by Alberto Primerano and the power of open source.
-
+Built with ❤️ by Alberto Primerano
