@@ -6,7 +6,7 @@ from rich.tree import Tree
 from rich.progress import Progress
 
 from core import logger,config_manager,show_execution_tree,show_final_answer
-from mcp import get_ollama_ai_agent
+from mcp_interface import get_ollama_ai_agent
 
 
 MODEL_NAME = config_manager.MODEL_NAME
@@ -27,11 +27,16 @@ async def load_agent():
 
 # 🔹 Parse JSON output from LLM reasoning response
 def extract_json_from_response(content: str) -> dict:
-    # Extract JSON block from triple-backtick code block
+    # Try to extract JSON from a ```json ... ``` block first
     match = re.search(r"```json\s*(\{.*?\})\s*```", content, re.DOTALL) or \
             re.search(r"```(.*?)```", content, re.DOTALL)
+
     if match:
         content = match.group(1).strip()
+        logger.debug("Found JSON block in triple backticks.")
+    else:
+        logger.warning("No JSON block found — trying to parse full content as JSON.")
+
     try:
         data = json.loads(content)
         # Fix common key typo if needed
@@ -39,31 +44,46 @@ def extract_json_from_response(content: str) -> dict:
             if "infferred_facts" in step:
                 step["inferred_facts"] = step.pop("infferred_facts")
         return data
+
     except Exception as e:
-        logger.error(f"Failed to parse JSON: {e}")
+        logger.error(f"Failed to parse JSON: {e}\nContent:\n{content}")
         return {}
+
+
 
 
 # 🔹 Prompt Ollama to generate a reasoning breakdown for a user question
 def generate_reasoning_json(question: str) -> dict:
     simulation_prompt = f"""
-You are a reasoning engine simulating the internal decision-making of a language model.
-Your task is to decompose this question into a structured reasoning path:
+       You are a reasoning engine simulating the internal decision-making process of a language model (LLM) when analyzing and fulfilling a user request.
 
-🔹 Only use a tool if real-time info is needed.
-🔹 Use your own knowledge otherwise.
+        Your task is to decompose the user input into a structured reasoning path that shows how the LLM would internally think to generate a complete and valuable answer — possibly using external tools, but only when absolutely necessary.
 
-Question:
-{question}
-"""
+        🔹 Use your own knowledge when possible.  
+        🔹 You do not know the current time, current weather, or live data — you must use a tool to obtain real-time information.
+        🔹 Only use a tool if the answer truly requires external data.
+
+        Respond with a JSON object containing the following fields:
+
+        - original_question
+        - intent
+        - reasoning_steps: with step_id, step_type (tool_use/inference/formatting/assumption), description, question (if applicable), dependencies, known_facts, inferred_facts
+        - required_info
+        - final_output_format
+        - notes
+
+        Here is the user's question:
+        {question}
+    """
 
     messages = [
-        {"role": "system", "content": "You simulate LLM reasoning steps."},
+        {"role": "system", "content": "You simulate step-by-step reasoning like an LLM would internally."},
         {"role": "user", "content": simulation_prompt}
     ]
 
     try:
         response = client.chat(model=MODEL_NAME, messages=messages)
+        print(response.message.content.strip())
         return extract_json_from_response(response.message.content.strip())
     except Exception as e:
         logger.exception(f"Failed to generate reasoning JSON: {e}")
