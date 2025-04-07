@@ -5,5 +5,5 @@ __pycache__/
 logs/
 .idea/
 .vscode/
-venv/
+.venv/
 *.DS_Store
