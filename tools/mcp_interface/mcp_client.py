@@ -37,7 +37,7 @@ class MCPClient(Generic[ToolType]):
         Load MCP server definitions from a JSON config file.
         Populates `self.servers` with server instances.
         """
-        config_path: Path = SCRIPT_DIR / "mcp_servers" / config_manager.MCP_CONFIG_FILE_NAME
+        config_path: Path = SCRIPT_DIR / config_manager.CONFIG_FOLDER_PATH / config_manager.MCP_CONFIG_FILE_NAME
 
         if not config_path.exists():
             logger.error(f"❌ Configuration file not found: {config_path}")

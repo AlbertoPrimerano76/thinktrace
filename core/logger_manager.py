@@ -38,7 +38,7 @@ class _LoggerManager:
 
         log_level = config_manager.LOG_LEVEL
         enable_file_logging = config_manager.ENABLE_FILE_LOGGING
-        log_folder = SCRIPT_DIR / config_manager.LOG_FOLDER
+        log_folder = SCRIPT_DIR / config_manager.LOG_FOLDER_PATH
         logger_name = config_manager.APP_NAME 
         
         

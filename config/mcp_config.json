@@ -2,7 +2,7 @@
     "mcpServers": {
       "time-server": {
         "command": "/Users/albertoprimerano/Apps/mcp/test/.mpc-client/bin/python3",
-        "args": ["mcp_servers/mcp_clock_server.py"]
+        "args": ["tools/mcp_servers/mcp_clock_server.py"]
       }
     }
 }
